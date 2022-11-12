@@ -12,13 +12,16 @@ Code stolen from: https://golsteyn.com/writing/dice
 """
 import cv2
 import numpy as np
+import imutils
 from sklearn import cluster
+
+SIDE_LENGTH = 25 #mm
+CORN_LENGTH = 14 #mm
 
 def get_blobs(frame):
     frame_blurred = cv2.medianBlur(frame, 7)
     frame_gray = cv2.cvtColor(frame_blurred, cv2.COLOR_BGR2GRAY)
     blobs = detector.detect(frame_gray)
-
     return blobs
 
 def get_dice_from_blobs(blobs):
@@ -34,7 +37,7 @@ def get_dice_from_blobs(blobs):
 
     if len(X) > 0:
         # Important to set min_sample to 0, as a dice may only have one dot
-        clustering = cluster.DBSCAN(eps=40, min_samples=1).fit(X)
+        clustering = cluster.DBSCAN(eps=60, min_samples=1).fit(X)
 
         # Find the largest label assigned + 1, that's the number of dice found
         num_dice = max(clustering.labels_) + 1
@@ -54,7 +57,58 @@ def get_dice_from_blobs(blobs):
     else:
         return []
 
-def overlay_info(frame, dice, blobs):
+def find_squares(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)[1]
+    can =  cv2.Canny(thresh, 100, 200)
+   
+    cnts, hier  = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    square = []
+
+    for c in cnts:
+        rect = cv2.minAreaRect(c)
+        if rect != None:
+            if rect[1][0] > 10:
+                sqaure = cv2.boxPoints(rect)
+                sqaure = np.int0(sqaure)
+    try:
+        return sqaure
+    except:
+        return []
+
+def find_corner(frames):
+    hsv = cv2.cvtColor(frames, cv2.COLOR_BGR2HSV)
+
+    result = frames.copy()    
+    frames = cv2.cvtColor(frames, cv2.COLOR_BGR2HSV)
+    
+    # lower boundary RED color range values; Hue (0 - 10)
+    lower1 = np.array([0, 100, 20])
+    upper1 = np.array([10, 255, 255])
+    
+    # upper boundary RED color range values; Hue (160 - 180)
+    lower2 = np.array([160,100,20])
+    upper2 = np.array([179,255,255])
+    
+    lower_mask = cv2.inRange(frames, lower1, upper1)
+    upper_mask = cv2.inRange(frames, lower2, upper2)
+    
+    full_mask = lower_mask + upper_mask
+    cv2.imshow("Mask", full_mask)
+    cnts, hier  = cv2.findContours(full_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    corner = [(0,0),0]
+    for c in cnts:
+        (x,y),r= cv2.minEnclosingCircle(c)
+        if r != None:
+            if r > corner[1]: # store the largest circle
+                corner = [(int(x),int(y)), int(r)]
+    
+    try:
+        return corner
+    except:
+        return [] 
+
+def overlay_info(frames, dice, blobs, sqaure, corner):
     # Overlay blobs
     for b in blobs:
         pos = b.pt
@@ -62,18 +116,107 @@ def overlay_info(frame, dice, blobs):
 
         cv2.circle(frame, (int(pos[0]), int(pos[1])),
                    int(r), (255, 0, 0), 2)
-
+        
+    p_array = [[],[],[],[],[],[],[]]
+    p_array[0] = np.array([corner[0][0], corner[0][1], 1])
+    top_face = 0
+    M = 0
     # Overlay dice number
     for d in dice:
         # Get textsize for text centering
         textsize = cv2.getTextSize(
             str(d[0]), cv2.FONT_HERSHEY_PLAIN, 3, 2)[0]
 
-        cv2.putText(frame, str(d[0]),
+        cv2.putText(frame, str(d[0]), 
                     (int(d[1] - textsize[0] / 2),
                      int(d[2] + textsize[1] / 2)),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        
+        p_array[d[0]] = np.array([int(d[1] - textsize[0] / 2), 
+                                  int(d[2] + textsize[1] / 2),
+                                  1])
+       
+        top_face = d[0]
+        delta = p_array[d[0]] - p_array[0]
 
+
+    try:
+        l = np.sqrt(delta.dot(delta))
+        angle = np.arctan2(delta[1], delta[0])
+        _w2o = np.array([[np.cos(angle), -np.sin(angle), p_array[0][0]], 
+                         [np.sin(angle), np.cos(angle),  p_array[0][1]],
+                         [0, 0, 1]])
+
+        if top_face == 6:
+            p_array[1] = np.matmul(_w2o,(  0,  0, 1))
+            p_array[2] = np.matmul(_w2o,(  0, -l, 1))
+            p_array[3] = np.matmul(_w2o,(2*l, -l, 1))
+            p_array[4] = np.matmul(_w2o,(  0,  l, 1))
+            p_array[5] = np.matmul(_w2o,(2*l,  l, 1))
+            p_array[6] = (  0,  0, 1)
+
+        elif top_face == 5:
+            p_array[1] = np.matmul(_w2o,(  0,  -l, 1))
+            p_array[2] = np.matmul(_w2o,(  0,  0,  1))
+            p_array[3] = np.matmul(_w2o,(  0,  l, 1))
+            p_array[4] = np.matmul(_w2o,(2*l,  -l, 1))
+            p_array[5] =(  0,  0, 1)
+            p_array[6] = np.matmul(_w2o,(2*l,  l, 1))
+            
+        elif top_face == 4:
+            p_array[1] = np.matmul(_w2o,(2*l,  l, 1))
+            p_array[2] = np.matmul(_w2o,( 0,   l, 1))
+            p_array[3] = np.matmul(_w2o,( 0,  0, 1))
+            p_array[4] = (  0,  0, 1)
+            p_array[5] = np.matmul(_w2o,(2*l, -l, 1))
+            p_array[6] = np.matmul(_w2o,(  0, -l, 1)) 
+
+        elif top_face == 3:
+            p_array[1] = np.matmul(_w2o,(  0,  l, 1))
+            p_array[2] = np.matmul(_w2o,(2*l,  l, 1))
+            p_array[3] = (  0,  0, 1)
+            p_array[4] = np.matmul(_w2o,(  0,  0, 1))
+            p_array[5] = np.matmul(_w2o,(  0, -l, 1))
+            p_array[6] = np.matmul(_w2o,(2*l, -l, 1))   
+
+        elif top_face == 2:
+            p_array[1] = np.matmul(_w2o,(2*l,  l, 1))
+            p_array[2] = (  0,  0, 1)
+            p_array[3] = np.matmul(_w2o,(2*l, -l, 1))
+            p_array[4] = np.matmul(_w2o,(  0, -l, 1))
+            p_array[5] = np.matmul(_w2o,(  0,  0, 1))
+            p_array[6] = np.matmul(_w2o,(  0,  l, 1)) 
+
+        elif top_face == 1:
+            p_array[1] = (  0,  0, 1)
+            p_array[2] = np.matmul(_w2o,(  2*l,  l, 1))
+            p_array[3] = np.matmul(_w2o,(  0, -l, 1))
+            p_array[4] = np.matmul(_w2o,(2*l,  l, 1))
+            p_array[5] = np.matmul(_w2o,(  0,  l, 1))
+            p_array[6] = np.matmul(_w2o,(  0,  0, 1))
+
+        cv2.putText(frame, "1", ([int(p_array[1][0]), int(p_array[1][1])]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        cv2.putText(frame, "2", ([int(p_array[2][0]), int(p_array[2][1])]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        cv2.putText(frame, "3", ([int(p_array[3][0]), int(p_array[3][1])]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        cv2.putText(frame, "4", ([int(p_array[4][0]), int(p_array[4][1])]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        cv2.putText(frame, "5", ([int(p_array[5][0]), int(p_array[5][1])]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        cv2.putText(frame, "6", ([int(p_array[6][0]), int(p_array[6][1])]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        
+    except:
+        print("no angle")
+        print(p_array[2])
+        
+
+    try:
+        cv2.drawContours(frame,[sqaure],0,(0,0,255),2)
+        cv2.circle(frame, corner[0], corner[1], (0,255,0), 2)
+    except:
+        print(square)
+        print("hmmm")
+
+def find_sides(frames, blobs, corner):
+    
+    return 1
 
 
 params = cv2.SimpleBlobDetector_Params()
@@ -82,16 +225,22 @@ params.filterByInertia
 params.minInertiaRatio = 0.6
 
 detector = cv2.SimpleBlobDetector_create(params)
+print("Opening Camera")
+cap = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
+print("Camera Opened")
 
 while(True):
     # Grab the latest image from the video feed
-    path = r'dice6.png' 
-    frame = cv2.imread(path)
-    ret = frame.copy()
+    ret, frame = cap.read()
     # We'll define these later
     blobs = get_blobs(frame)
     dice = get_dice_from_blobs(blobs)
-    out_frame = overlay_info(frame, dice, blobs)
+    square = find_squares(frame)
+    corner = find_corner(frame)
+    sides = find_sides(frame, blobs, corner)
+
+    out_frame = overlay_info(frame,dice, blobs, square, corner)
+
 
     cv2.imshow("frame", frame)
 
