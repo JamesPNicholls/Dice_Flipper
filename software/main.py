@@ -57,6 +57,7 @@ def get_dice_from_blobs(blobs):
     else:
         return []
 
+# Finds contour of the dice in order to gain the angle of the dice
 def find_squares(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     thresh = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)[1]
@@ -65,6 +66,7 @@ def find_squares(frame):
     cnts, hier  = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     square = []
 
+    # find the largest square which will be the dice 
     for c in cnts:
         rect = cv2.minAreaRect(c)
         if rect != None:
@@ -76,6 +78,7 @@ def find_squares(frame):
     except:
         return []
 
+# finds the red corner of the dice to determine the adjacent die faces 
 def find_corner(frames):
     hsv = cv2.cvtColor(frames, cv2.COLOR_BGR2HSV)
 
@@ -93,8 +96,8 @@ def find_corner(frames):
     lower_mask = cv2.inRange(frames, lower1, upper1)
     upper_mask = cv2.inRange(frames, lower2, upper2)
     
+    # mask the image to find the red mark
     full_mask = lower_mask + upper_mask
-    cv2.imshow("Mask", full_mask)
     cnts, hier  = cv2.findContours(full_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     corner = [(0,0),0]
     for c in cnts:
@@ -104,6 +107,7 @@ def find_corner(frames):
                 corner = [(int(x),int(y)), int(r)]
     
     try:
+        # returns only the largest red surface found
         return corner
     except:
         return [] 
@@ -117,10 +121,12 @@ def overlay_info(frames, dice, blobs, sqaure, corner):
         cv2.circle(frame, (int(pos[0]), int(pos[1])),
                    int(r), (255, 0, 0), 2)
         
+    # Holds the positions of the faces in pixels    
     p_array = [[],[],[],[],[],[],[]]
-    p_array[0] = np.array([corner[0][0], corner[0][1], 1])
+    delta = 0
     top_face = 0
     M = 0
+
     # Overlay dice number
     for d in dice:
         # Get textsize for text centering
@@ -132,15 +138,18 @@ def overlay_info(frames, dice, blobs, sqaure, corner):
                      int(d[2] + textsize[1] / 2)),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
         
+        # first entry is the reference corner
         p_array[d[0]] = np.array([int(d[1] - textsize[0] / 2), 
                                   int(d[2] + textsize[1] / 2),
                                   1])
-       
+        # stores the value of the top face
         top_face = d[0]
+        # finds the difference between the reference corner and the center of the die face
         delta = p_array[d[0]] - p_array[0]
 
 
     try:
+        # Robotics transform discussed in elex_7660
         l = np.sqrt(delta.dot(delta))
         angle = np.arctan2(delta[1], delta[0])
         _w2o = np.array([[np.cos(angle), -np.sin(angle), p_array[0][0]], 
@@ -206,17 +215,13 @@ def overlay_info(frames, dice, blobs, sqaure, corner):
         print("no angle")
         print(p_array[2])
         
-
     try:
+        # draws the boudning rect, and bounding circ on the reference corner
         cv2.drawContours(frame,[sqaure],0,(0,0,255),2)
         cv2.circle(frame, corner[0], corner[1], (0,255,0), 2)
     except:
         print(square)
         print("hmmm")
-
-def find_sides(frames, blobs, corner):
-    
-    return 1
 
 
 params = cv2.SimpleBlobDetector_Params()
@@ -237,10 +242,7 @@ while(True):
     dice = get_dice_from_blobs(blobs)
     square = find_squares(frame)
     corner = find_corner(frame)
-    sides = find_sides(frame, blobs, corner)
-
     out_frame = overlay_info(frame,dice, blobs, square, corner)
-
 
     cv2.imshow("frame", frame)
 

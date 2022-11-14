@@ -1,3 +1,6 @@
+# CCS stuff
+firmware/.metadata/
+/firmware/.jxbrowser.userdata/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
