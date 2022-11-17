@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "f2802x_sci.h": "c",
+        "f2802x_gpio.h": "c"
+    }
+}

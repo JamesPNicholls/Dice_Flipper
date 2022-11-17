@@ -41,10 +41,34 @@ EALLOW; //allow access to protected registers
     GpioCtrlRegs.GPADIR.bit.GPIO3 = 1; //set gpio as output
     GpioDataRegs.GPASET.bit.GPIO3 = 1; //initialize output value to "1"
 
+/*************Pins for debugging********************/
+//  GPIO-00 - PIN FUNCTION = --Spare--
+//  GPIO-05 - PIN FUNCTION = --Spare--
+	GpioCtrlRegs.GPAMUX1.bit.GPIO5 = 0;		// 0=GPIO,  1=EPWM3B,  2=Resv,  3=ECAP1
+	GpioCtrlRegs.GPADIR.bit.GPIO5 = 1;		// 1=OUTput,  0=INput
+	GpioDataRegs.GPACLEAR.bit.GPIO5 = 1;	// uncomment if --> Set Low initially
+//	GpioDataRegs.GPASET.bit.GPIO5 = 1;		// uncomment if --> Set High initially
+
+    GpioCtrlRegs.GPAPUD.bit.GPIO5 = 0; //Enable the pull up to drive the output pin
+
+
+/*************SCI-A Enable Stuff********************8*/
     SysCtrlRegs.PCLKCR0.bit.SCIAENCLK = 1;
     // Note: Clocks were turned on to the SCIA peripheral
     // in the InitSysCtrl() function
-    //
+
+    // Reset the SCI regs
+    SciaRegs.SCICTL1.bit.SWRESET = 0;
+    SciaRegs.SCICTL1.bit.SWRESET = 1;
+
+    // Mux settings for first
+    GpioCtrlRegs.GPAMUX2.bit.GPIO29 = 1;
+    GpioCtrlRegs.GPAMUX2.bit.GPIO28 = 1;
+
+    GpioCtrlRegs.GPAQSEL2.bit.GPIO28 = 3;
+
+    GpioCtrlRegs.GPADIR.bit.GPIO28 = 0;
+    GpioCtrlRegs.GPADIR.bit.GPIO29 = 1;
 
     SciaRegs.SCICCR.all = 0x0007;   // 1 stop bit,  No loopback
                                     // No parity,8 char bits,
@@ -53,24 +77,20 @@ EALLOW; //allow access to protected registers
     SciaRegs.SCICTL1.all = 0x0003;  // enable TX, RX, internal SCICLK,
                                     // Disable RX ERR, SLEEP, TXWAKE
 
-    SciaRegs.SCICTL2.all = 0x0003;
-    SciaRegs.SCICTL2.bit.TXINTENA = 1;
-    SciaRegs.SCICTL2.bit.RXBKINTENA = 1;
+    SciaRegs.SCICTL2.all = 0x0000;
 
 
     // Baud Rate settings, currently configure for baud rate of 9600, see Onenote for explanation
     SysCtrlRegs.LOSPCP.bit.LSPCLK = SYSCLKOUT_DIV6;
-    SciaRegs.SCIHBAUD = 0x05;
-    SciaRegs.SCILBAUD = 0x15;
+    SciaRegs.SCIHBAUD = 0x00;
+    SciaRegs.SCILBAUD = 0x82;
 
     SciaRegs.SCICTL1.all = 0x0023;  // Relinquish SCI from Reset
 
-    // Mux setting
-    GpioCtrlRegs.GPAMUX2.bit.GPIO29 = 1;
-    GpioCtrlRegs.GPAMUX2.bit.GPIO28 = 1;
+
 
     // Pull-up Resistor Enable
-    // PU needed to asset high values
+    // PU needed to assert high values
     GpioCtrlRegs.GPAPUD.bit.GPIO29 = 0;
     GpioCtrlRegs.GPAPUD.bit.GPIO28 = 0;
 
@@ -79,9 +99,7 @@ EALLOW; //allow access to protected registers
 
 
     // Initialize FIFOs for the Tx/Rx
-    SciaRegs.SCIFFTX.all = 0xE040;
-    SciaRegs.SCIFFRX.all = 0x2044;
-    SciaRegs.SCIFFCT.all = 0x0;
+    SciaRegs.SCIFFTX.all = 0x8000;
 
 
 EDIS; //disallow access to protected registers
