@@ -14,8 +14,9 @@
 // Modified by:     Laurel Kinahan
 // Modified Date:   21/Nov/2022
 // Modified:        
-//                  Enabled PCLKCR1.bit.EPWM1/2/3/4ENCLK
+//                  Enabled PCLKCR1.bit.EPWM0/2/4/6ENCLK
 //                  Enable TBCLK
+//		    Disable Disable pull-up on GPIO0,2,4,6
 //                  Configured GPIO0 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO0 = 1)
 //                  Initialized GPIO0 to 0  (Set GpioDataRegs.GPACLEAR.bit.GPIO0 = 1)
 //                  Configured GPIO2 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO2 = 1)
@@ -156,6 +157,7 @@ void DeviceInit(void)
 	GpioCtrlRegs.GPADIR.bit.GPIO0 = 1;		// 1=OUTput,  0=INput                       // LK
 //	GpioDataRegs.GPACLEAR.bit.GPIO0 = 1;	// uncomment if --> Set Low initially
 	GpioDataRegs.GPASET.bit.GPIO0 = 1;		// uncomment if --> Set High initially      // LK
+	GpioCtrlRegs.GPAPUD.bit.GPIO0 = 1;    		// Disable pull-up on GPIO0 		    // LK
 //--------------------------------------------------------------------------------------
 //  GPIO-01 - PIN FUNCTION = --Spare--
 	GpioCtrlRegs.GPAMUX1.bit.GPIO1 = 0;		// 0=GPIO,  1=EPWM1B,  2=EMU0,  3=COMP1OUT
@@ -169,6 +171,7 @@ void DeviceInit(void)
 	GpioCtrlRegs.GPADIR.bit.GPIO2 = 1;		// 1=OUTput,  0=INput                       // LK
 //	GpioDataRegs.GPACLEAR.bit.GPIO2 = 1;	// uncomment if --> Set Low initially
 	GpioDataRegs.GPASET.bit.GPIO2 = 1;		// uncomment if --> Set High initially      // LK
+	GpioCtrlRegs.GPAPUD.bit.GPIO2 = 1;    		// Disable pull-up on GPIO2		    // LK	
 //--------------------------------------------------------------------------------------
 //  GPIO-03 - PIN FUNCTION = --Spare--
 	GpioCtrlRegs.GPAMUX1.bit.GPIO3 = 0;		// 0=GPIO,  1=EPWM2B,  2=Resv,  3=COMP2OUT
@@ -182,6 +185,7 @@ void DeviceInit(void)
 	GpioCtrlRegs.GPADIR.bit.GPIO4 = 1;		// 1=OUTput,  0=INput                       // LK
 //	GpioDataRegs.GPACLEAR.bit.GPIO4 = 1;	// uncomment if --> Set Low initially
 	GpioDataRegs.GPASET.bit.GPIO4 = 1;		// uncomment if --> Set High initially      // LK
+	GpioCtrlRegs.GPAPUD.bit.GPIO4 = 1;    		// Disable pull-up on GPIO4		    // LK
 //--------------------------------------------------------------------------------------
 //  GPIO-05 - PIN FUNCTION = --Spare--
 	GpioCtrlRegs.GPAMUX1.bit.GPIO5 = 0;		// 0=GPIO,  1=EPWM3B,  2=Resv,  3=ECAP1
@@ -195,6 +199,7 @@ void DeviceInit(void)
 	GpioCtrlRegs.GPADIR.bit.GPIO6 = 1;		// 1=OUTput,  0=INput                       // LK
 //	GpioDataRegs.GPACLEAR.bit.GPIO6 = 1;	// uncomment if --> Set Low initially
 	GpioDataRegs.GPASET.bit.GPIO6 = 1;		// uncomment if --> Set High initially      // LK
+	GpioCtrlRegs.GPAPUD.bit.GPIO6 = 1;    		// Disable pull-up on GPIO6		    // LK
 //--------------------------------------------------------------------------------------
 //  GPIO-07 - PIN FUNCTION = --Spare--
 	GpioCtrlRegs.GPAMUX1.bit.GPIO7 = 0;		// 0=GPIO,  1=EPWM4B,  2=SCIRX-A,  3=Resv
