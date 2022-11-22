@@ -24,7 +24,7 @@ void servo_init(int servos) {
 //--------------------------------------------------------------------------------------
 // Initialization 
 //--------------------------------------------------------------------------------------
-// ePWM1A config for 50Hz output
+// ePWM1A/1B config for 50Hz output
   EPwm1Regs.TBPRD = 30000;         // freq = 60M/? = 50Hz
   EPwm1Regs.CMPA.half.CMPA = 0;   // 0% duty cycle initially
   EPwm1Regs.CMPB = 0;             // 0% duty cycle initially
@@ -45,29 +45,6 @@ void servo_init(int servos) {
   
   GpioCtrlRegs.GPAMUX1.bit.GPIO0 = 1; // 1=EPWM1A
   GpioCtrlRegs.GPAPUD.bit.GPIO0 =1;   // Diable pull-up on GPIO0
-  
-//
-// ePWM2A config for 50Hz output
-  EPwm2Regs.TBPRD = 30000;         // freq = 60M/? = 50Hz
-  EPwm2Regs.CMPA.half.CMPA = 0;   // 0% duty cycle initially
-  EPwm2Regs.CMPB = 0;             // 0% duty cycle initially
-  EPwm2Regs.TBPHS.half.TBPHS = 0; // Set phase register to zero
-  EPwm2Regs.TBCTR = 0;            // Clear TB Counter
-  EPwm2Regs.TBCTL.bit.CTRMODE = 00; // Count_up Asymmetric mode
-  EPwm2Regs.TBCTL.bit.PHSEN = 0;  // Phase loading disabled
-  EPwm2Regs.TBCTL.bit.PRDLD = 0;
-  EPwm2Regs.TBCTL.bit.SYNCOSEL = 3;
-  EPwm2Regs.TBCTL.bit.HSPCLKDIV = 5;  // TBCLK=SYSCLK
-  EPwm2Regs.TBCTL.bit.CLKDIV = 0;
-  EPwm2Regs.CMPCTL.bit.SHDWAMODE = 0; // load on CTR=Zero
-  EPwm2Regs.CMPCTL.bit.SHDWBMODE = 0; // load on CTR=Zero
-  EPwm2Regs.AQCTLA.bit.ZRO = 2;     // 2 = SET
-  EPwm2Regs.AQCTLA.bit.CAU = 1;     // 1 = CLEAR
-  EPwm2Regs.AQCTLB.bit.ZRO = 2;     // 2 = SET
-  EPwm2Regs.AQCTLB.bit.CAU = 1;     // 1 = CLEAR
-  
-  GpioCtrlRegs.GPAMUX1.bit.GPIO2 = 1; // 1=EPWM2A
-  GpioCtrlRegs.GPAPUD.bit.GPIO2 =1;   // Diable pull-up on GPIO2
   
 //
 // ePWM3A config for 50Hz output
