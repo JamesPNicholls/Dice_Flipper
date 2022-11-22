@@ -14,12 +14,12 @@
 // Modified by:     Laurel Kinahan
 // Modified Date:   21/Nov/2022
 // Modified:        
-//                  Enabled PCLKCR1.bit.EPWM0/2/4/6ENCLK
+//                  Enabled PCLKCR1.bit.EPWM0/1/4/6ENCLK
 //                  Enable TBCLK
 //                  Configured GPIO0 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO0 = 1)
 //                  Initialized GPIO0 to 0  (Set GpioDataRegs.GPACLEAR.bit.GPIO0 = 1)
-//                  Configured GPIO2 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO2 = 1)
-//                  Initialized GPIO2 to 0  (Set GpioDataRegs.GPACLEAR.bit.GPIO2 = 1)
+//                  Configured GPIO1 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO1 = 1)
+//                  Initialized GPIO1 to 0  (Set GpioDataRegs.GPACLEAR.bit.GPIO1 = 1)
 //                  Configured GPIO4 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO4 = 1)
 //                  Initialized GPIO4 to 0  (Set GpioDataRegs.GPACLEAR.bit.GPIO4 = 1)
 //                  Configured GPIO6 as an output (Set GpioCtrlRegs.GPADIR.bit.GPIO6 = 1)
@@ -124,9 +124,9 @@ void DeviceInit(void)
    //------------------------------------------------
    SysCtrlRegs.PCLKCR1.bit.ECAP1ENCLK = 0;	//eCAP1
    //------------------------------------------------
-   // TURN ON ePWM1,2,3,4
+   // TURN ON ePWM1,3,4
    SysCtrlRegs.PCLKCR1.bit.EPWM1ENCLK = 1;  // ePWM1    // LK
-   SysCtrlRegs.PCLKCR1.bit.EPWM2ENCLK = 1;  // ePWM2    // LK
+   SysCtrlRegs.PCLKCR1.bit.EPWM2ENCLK = 0;  
    SysCtrlRegs.PCLKCR1.bit.EPWM3ENCLK = 1;  // ePWM3    // LK
    SysCtrlRegs.PCLKCR1.bit.EPWM4ENCLK = 1;  // ePWM4    // LK
    //------------------------------------------------
@@ -158,17 +158,17 @@ void DeviceInit(void)
 	GpioDataRegs.GPASET.bit.GPIO0 = 1;		// uncomment if --> Set High initially      // LK
 //--------------------------------------------------------------------------------------
 //  GPIO-01 - PIN FUNCTION = --Spare--
-	GpioCtrlRegs.GPAMUX1.bit.GPIO1 = 0;		// 0=GPIO,  1=EPWM1B,  2=EMU0,  3=COMP1OUT
-	GpioCtrlRegs.GPADIR.bit.GPIO1 = 0;		// 1=OUTput,  0=INput 
+	//   ePWM1B  J1PIN 2
+	GpioCtrlRegs.GPAMUX1.bit.GPIO1 = 1;		// 0=GPIO,  1=EPWM1B,  2=EMU0,  3=COMP1OUT  // LK
+	GpioCtrlRegs.GPADIR.bit.GPIO1 = 1;		// 1=OUTput,  0=INput 			    // LK
 //	GpioDataRegs.GPACLEAR.bit.GPIO1 = 1;	// uncomment if --> Set Low initially
-//	GpioDataRegs.GPASET.bit.GPIO1 = 1;		// uncomment if --> Set High initially
+	GpioDataRegs.GPASET.bit.GPIO1 = 1;		// uncomment if --> Set High initially      // LK
 //--------------------------------------------------------------------------------------
 //  GPIO-02 - PIN FUNCTION = --Spare--
-	//   ePWM2A  J1PIN 3
-	GpioCtrlRegs.GPAMUX1.bit.GPIO2 = 1;		// 0=GPIO,  1=EPWM2A,  2=Resv,  3=Resv      // LK
-	GpioCtrlRegs.GPADIR.bit.GPIO2 = 1;		// 1=OUTput,  0=INput                       // LK
+	GpioCtrlRegs.GPAMUX1.bit.GPIO2 = 0;		// 0=GPIO,  1=EPWM2A,  2=Resv,  3=Resv      
+	GpioCtrlRegs.GPADIR.bit.GPIO2 = 0;		// 1=OUTput,  0=INput                       
 //	GpioDataRegs.GPACLEAR.bit.GPIO2 = 1;	// uncomment if --> Set Low initially
-	GpioDataRegs.GPASET.bit.GPIO2 = 1;		// uncomment if --> Set High initially      // LK	
+//	GpioDataRegs.GPASET.bit.GPIO2 = 1;		// uncomment if --> Set High initially      	
 //--------------------------------------------------------------------------------------
 //  GPIO-03 - PIN FUNCTION = --Spare--
 	GpioCtrlRegs.GPAMUX1.bit.GPIO3 = 0;		// 0=GPIO,  1=EPWM2B,  2=Resv,  3=COMP2OUT
