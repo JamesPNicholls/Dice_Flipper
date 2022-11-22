@@ -21,25 +21,32 @@ void DeviceInit(void)
 //initialize GPIO:
 EALLOW; //allow access to protected registers
 
-    //configure D2 (right-most blue LED)
-    GpioCtrlRegs.GPAMUX1.bit.GPIO0 = 0; //set pin as gpio
-    GpioCtrlRegs.GPADIR.bit.GPIO0 = 1; //set gpio as output
-    GpioDataRegs.GPASET.bit.GPIO0 = 1; //initialize output value to "1"
+    // GPIO 
+//  GPIO-00 - PIN FUNCTION = --Spare--
+	GpioCtrlRegs.GPAMUX1.bit.GPIO0 = 1;		// 0=GPIO,  1=EPWM1A,  2=Resv,  3=Resv
+	GpioCtrlRegs.GPADIR.bit.GPIO0 = 1;		// 1=OUTput,  0=INput 
+//	GpioDataRegs.GPACLEAR.bit.GPIO0 = 1;	// uncomment if --> Set Low initially
+	GpioDataRegs.GPASET.bit.GPIO0 = 1;		// uncomment if --> Set High initially
+//--------------------------------------------------------------------------------------
+//  GPIO-01 - PIN FUNCTION = --Spare--
+	GpioCtrlRegs.GPAMUX1.bit.GPIO1 = 1;		// 0=GPIO,  1=EPWM1B,  2=EMU0,  3=COMP1OUT
+	GpioCtrlRegs.GPADIR.bit.GPIO1 = 1;		// 1=OUTput,  0=INput 
+//	GpioDataRegs.GPACLEAR.bit.GPIO1 = 1;	// uncomment if --> Set Low initially
+	GpioDataRegs.GPASET.bit.GPIO1 = 1;		// uncomment if --> Set High initially
+//--------------------------------------------------------------------------------------
+//  GPIO-02 - PIN FUNCTION = --Spare--
+	GpioCtrlRegs.GPAMUX1.bit.GPIO2 = 1;		// 0=GPIO,  1=EPWM2A,  2=Resv,  3=Resv
+	GpioCtrlRegs.GPADIR.bit.GPIO2 = 1;		// 1=OUTput,  0=INput
+	GpioDataRegs.GPACLEAR.bit.GPIO2 = 1;	// uncomment if --> Set Low initially
+//	GpioDataRegs.GPASET.bit.GPIO2 = 1;		// uncomment if --> Set High initially
+//--------------------------------------------------------------------------------------
+//  GPIO-03 - PIN FUNCTION = --Spare--
+	GpioCtrlRegs.GPAMUX1.bit.GPIO3 = 1;		// 0=GPIO,  1=EPWM2B,  2=Resv,  3=COMP2OUT
+	GpioCtrlRegs.GPADIR.bit.GPIO3 = 0;		// 1=OUTput,  0=INput 
+//	GpioDataRegs.GPACLEAR.bit.GPIO3 = 1;	// uncomment if --> Set Low initially
+//	GpioDataRegs.GPASET.bit.GPIO3 = 1;		// uncomment if --> Set High initially
+//--------------------------------------------------------------------------------------
 
-    //configure D4 (second-from-right blue LED)
-    GpioCtrlRegs.GPAMUX1.bit.GPIO1 = 0; //set pin as gpio
-    GpioCtrlRegs.GPADIR.bit.GPIO1 = 1; //set gpio as output
-    GpioDataRegs.GPASET.bit.GPIO1 = 1; //initialize output value to "1"
-
-    //configure D3 (second-from-left blue LED)
-    GpioCtrlRegs.GPAMUX1.bit.GPIO2 = 0; //set pin as gpio
-    GpioCtrlRegs.GPADIR.bit.GPIO2 = 1; //set gpio as output
-    GpioDataRegs.GPASET.bit.GPIO2 = 1; //initialize output value to "1"
-
-    //configure D5 (left-most blue LED)
-    GpioCtrlRegs.GPAMUX1.bit.GPIO3 = 0; //set pin as gpio
-    GpioCtrlRegs.GPADIR.bit.GPIO3 = 1; //set gpio as output
-    GpioDataRegs.GPASET.bit.GPIO3 = 1; //initialize output value to "1"
 
 /*************Pins for debugging********************/
 //  GPIO-00 - PIN FUNCTION = --Spare--
@@ -101,6 +108,38 @@ EALLOW; //allow access to protected registers
     // Initialize FIFOs for the Tx/Rx
     SciaRegs.SCIFFTX.all = 0x8000;
 
+
+    /*******************PWM********************/
+    // clkEnables
+    SysCtrlRegs.PCLKCR1.bit.EPWM1ENCLK = 1;  // ePWM1
+    SysCtrlRegs.PCLKCR1.bit.EPWM2ENCLK = 1;  // ePWM2
+    SysCtrlRegs.PCLKCR1.bit.EPWM3ENCLK = 0;  // ePWM3
+    SysCtrlRegs.PCLKCR1.bit.EPWM4ENCLK = 0;  // ePWM4
+    
+    // = = = = = = = = = = = = = = = = = = = = = = = =
+    EPwm1Regs.TBPRD = 600; // Period = 601 TBCLK counts
+    EPwm1Regs.CMPA.half.CMPA = 350; // Compare A = 350 TBCLK counts
+    EPwm1Regs.CMPB = 200; // Compare B = 200 TBCLK counts
+    EPwm1Regs.TBPHS.all = 0; // Set Phase register to zero
+    EPwm1Regs.TBCTR = 0; // clear TB counter
+    EPwm1Regs.TBCTL.bit.CTRMODE = 0;
+    EPwm1Regs.TBCTL.bit.PHSEN = 0; // Phase loading disabled
+    EPwm1Regs.TBCTL.bit.PRDLD = 0;
+    EPwm1Regs.TBCTL.bit.SYNCOSEL = 3;
+    EPwm1Regs.TBCTL.bit.HSPCLKDIV = 0; // TBCLK = SYSCLK
+    EPwm1Regs.TBCTL.bit.CLKDIV = 0;
+    EPwm1Regs.CMPCTL.bit.SHDWAMODE = 0;
+    EPwm1Regs.CMPCTL.bit.SHDWBMODE = 0;
+    EPwm1Regs.CMPCTL.bit.LOADAMODE = 0; // load on CTR = Zero
+    EPwm1Regs.CMPCTL.bit.LOADBMODE = 0; // load on CTR = Zero
+    EPwm1Regs.AQCTLA.bit.ZRO = 2;
+    EPwm1Regs.AQCTLA.bit.CAU = 1;
+    EPwm1Regs.AQCTLB.bit.ZRO = 2;
+    EPwm1Regs.AQCTLB.bit.CBU = 1;
+
+    // Set the PWM perioid
+    EPwm1Regs.CMPA.half.CMPA = 1000; // adjust duty for output EPWM1A
+    EPwm1Regs.CMPB = 2000; // adjust duty for output EPWM1B
 
 EDIS; //disallow access to protected registers
 }

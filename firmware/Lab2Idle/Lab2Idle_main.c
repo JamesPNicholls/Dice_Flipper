@@ -23,11 +23,13 @@ extern void DeviceInit(void);
 void scia_msg(char * msg);
 void scia_xmit(int a);
 
+
 void SCIA_AutobaudLock(void);
 void SendACK(void);
 inline Uint16 SCIA_GetACK();
 inline void SCIA_Flush(void);
 void SCI_SendWord(Uint16 word);
+Uint16 SCIA_GetOnlyWordData(void);
 
 //declare global variables:
 volatile Bool isrFlag = FALSE; //flag used by idle function
@@ -37,10 +39,11 @@ Uint16 ReceivedChar;
 char *msg;
 Uint16 checksum;
 Uint16 return_ack;
+Uint16 word_data;
 
 /* ======== main ======== */
 Int main()
-    {
+     {
     System_printf("Enter main()\n"); //use ROV->SysMin to view the characters in the circular buffer
 
     //initialization:
@@ -74,11 +77,14 @@ Void myIdleFxn(Void)
    if(isrFlag == TRUE) {
        isrFlag = FALSE;
        //toggle blue LED:
-       GpioDataRegs.GPATOGGLE.bit.GPIO0 = 1;
+      // GpioDataRegs.GPATOGGLE.bit.GPIO0 = 1;
 
        SendACK();
-       return_ack = SCIA_GetACK();
+       //return_ack = SCIA_GetACK();
+       word_data = SCIA_GetOnlyWordData();
+       
    }
+
 
    if(SciaRegs.SCIRXST.bit.RXRDY == 1)
    {
@@ -174,4 +180,36 @@ void SCIA_AutobaudLock(void)
     SciaRegs.SCITXBUF = byteData;
 
     return;
+}
+
+Uint16 SCIA_GetOnlyWordData(void)
+{
+   Uint16 wordData;
+   Uint16 byteData;
+
+   wordData = 0x0000;
+   byteData = 0x0000;
+
+   //
+   // Fetch the LSB and verify back to the host
+   //
+   while(SciaRegs.SCIRXST.bit.RXRDY != 1) { }
+   wordData = (Uint16)SciaRegs.SCIRXBUF.bit.RXDT;
+   //SciaRegs.SCITXBUF.bit.TXDT = wordData;
+
+   //
+   // Fetch the MSB and verify back to the host
+   //
+   while(SciaRegs.SCIRXST.bit.RXRDY != 1) { }
+   byteData =  (Uint16)SciaRegs.SCIRXBUF.bit.RXDT;
+   //SciaRegs.SCITXBUF.bit.TXDT = byteData;
+
+   checksum += wordData + byteData;
+
+   //
+   // form the wordData from the MSB:LSB
+   //
+   wordData |= (byteData << 8);
+
+   return wordData;
 }
