@@ -11,25 +11,44 @@
 //defines:
 #define xdc__strict //suppress typedef warnings
 #define ACK 0x2D
+#define x_A 0xXX
+#define y_A 0xYY
+
+
+
 //includes:
 #include <xdc/std.h>
 #include <xdc/runtime/System.h>
 #include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Swi.h>
+#include <ti/sysbios/hal/Hwi.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Semaphore.h>
+
+
+
+
+//Swi handle defined in .cfg file:
+
+//Interupt handles
+extern const Swi_Handle Swi0; // Assign Motor Position
+extern const Hwi_Handle hwi0; // Get UART input
+extern const Task_Handle Tsk0; // Handler for the PID scaling
+//Semaphore handle defined in .cfg file:
+extern const Semaphore_Handle mySem;
 
 #include <Headers/F2802x_device.h>
 
 //function prototypes:
 extern void DeviceInit(void);
-void scia_msg(char * msg);
-void scia_xmit(int a);
 
-
-void SCIA_AutobaudLock(void);
+//Sends 0x2d to the pi
 void SendACK(void);
-inline Uint16 SCIA_GetACK();
 inline void SCIA_Flush(void);
-void SCI_SendWord(Uint16 word);
-Uint16 SCIA_GetOnlyWordData(void);
+
+Uint16 pid_x();
+Uint16 pid_y();
+void pixel_to_motor(Uint16 x, Uint16 y);
 
 //declare global variables:
 volatile Bool isrFlag = FALSE; //flag used by idle function
@@ -40,6 +59,63 @@ char *msg;
 Uint16 checksum;
 Uint16 return_ack;
 Uint16 word_data;
+Uint16 duty;
+
+// Ball parameters
+Uint16 x_ball_pos_old = 0;
+Uint16 y_ball_pos_old = 0;
+
+Uint16 x_ball_pos_new = 0;
+Uint16 y_ball_pos_new = 0;
+
+Uint16 x_ball_set = 50;
+Uint16 y_ball_set = 50;
+Uint16 x_serv_set = 2800;
+Uint16 y_serv_set = 2800;
+
+
+// Servo Parameters
+Uint16 x_max = 50;
+Uint16 y_max = 50;
+int16 x_min = -50;
+int16 y_min = -50;
+
+Uint16 x_servo = 0;
+Uint16 y_servo = 0;
+
+// PID parameters
+float32 outX = 0;
+float32 outY = 0;
+
+float32 kpX = 12.5;
+float32 kiX = 0;
+float32 kdX = 200;
+
+float32 kpY = 12.5;
+float32 kiY = 0;
+float32 kdY = 200;
+
+float32 kpX_a = 10;
+float32 kiX_a = 0;
+float32 kdX_a = 200;
+
+float32 kpY_a = 10;
+float32 kiY_a = 0;
+float32 kdY_a = 200;
+
+float32 outsum_x = 0;
+float32 outsum_y = 0;
+
+Uint16 pwm_mult = 4;
+Uint16 pwm_offset_x = 2125;
+Uint16 pwm_offset_y = 2375;
+Uint16 dead_band_rad = 5;
+
+//True to use the PID tuning
+//False to use x/y_ball_pos_new
+bool PID = true;
+bool debug = true;
+//https://github.com/br3ttb/Arduino-PID-Library/blob/master/PID_v1.cpp maybe steal this?
 
 /* ======== main ======== */
 Int main()
@@ -59,14 +135,6 @@ Int main()
 //Entered times per second if PLL and Timer set up correctly
 Void myTickFxn(UArg arg)
 {
-    tickCount++; //increment the tick counter
-    if(tickCount % 1 == 0) {
-        isrFlag = TRUE; //tell idle thread to do something 20 times per second
-    }
-}
-
-Void mySwiFxn(Void)
-{
 
 }
 
@@ -74,28 +142,154 @@ Void mySwiFxn(Void)
 //Idle function that is called repeatedly from RTOS
 Void myIdleFxn(Void)
 {
-   if(isrFlag == TRUE) {
-       isrFlag = FALSE;
-       //toggle blue LED:
-      // GpioDataRegs.GPATOGGLE.bit.GPIO0 = 1;
 
-       SendACK();
-       //return_ack = SCIA_GetACK();
-       word_data = SCIA_GetOnlyWordData();
-       
-   }
-
-
-   if(SciaRegs.SCIRXST.bit.RXRDY == 1)
-   {
-       GpioDataRegs.GPASET.bit.GPIO19 = 1;
-   }
-   else
-   {
-       GpioDataRegs.GPACLEAR.bit.GPIO19 = 1;
-   }
 }
 
+//Scale
+Void myTskFxn(Void)
+{
+
+    while(true)
+    {
+
+        Semaphore_pend(mySem, BIOS_WAIT_FOREVER); //wait for semaphore to be posted
+        GpioDataRegs.GPASET.bit.GPIO5 = 1;
+
+
+
+    }
+
+
+}
+
+Void mySwiFxn(Void)
+{
+
+    Uint16 x, y, diff_x, diff_y;
+
+    if(PID)
+    {
+
+
+        x = pid_x();
+        y = pid_y();
+        diff_x = abs(x_ball_pos_new - x_ball_set);
+        diff_y = abs(y_ball_pos_new - y_ball_set);
+
+        kpX = diff_x;
+        kpY = diff_y;
+
+
+
+        if(diff_x < dead_band_rad)
+        {
+            x = 50;
+        }
+
+        if(diff_y < dead_band_rad)
+        {
+            y = 50;
+        }
+
+        pixel_to_motor(x, y);
+    }
+    else
+    {
+        pixel_to_motor(x_ball_pos_new, y_ball_pos_new);
+    }
+
+    Semaphore_post(mySem); // Let the tsk thread run to manage the PID constants
+}
+
+Void myHwi(Void)
+{
+
+
+    GpioDataRegs.GPACLEAR.bit.GPIO5 = 1;
+    Swi_post(Swi0); // Post the Swi to assign the values to motors
+    GpioDataRegs.GPACLEAR.bit.GPIO5 = 1;
+    Uint16 rx_data = SciaRegs.SCIRXBUF.bit.RXDT;
+
+    //Values received are from 0 to 100
+    //0 to 100 uses 7 bits, with the 8th for X/!Y control
+    if(rx_data & 0x80) // if MSB = 1 store x_pos
+    {
+        x_ball_pos_new = rx_data & 0x7f; // mask out the flag bit
+    }
+    else // if the MSB is 0 store y pos
+    {
+        y_ball_pos_new = rx_data;
+    }
+    SendACK(); //Send ack to request the next value
+    GpioDataRegs.GPASET.bit.GPIO5 = 1;
+    SciaRegs.SCIFFRX.bit.RXFFOVRCLR=1;   // Clear Overflow flag
+    SciaRegs.SCIFFRX.bit.RXFFINTCLR=1;   // Clear Interrupt flag
+
+    PieCtrlRegs.PIEACK.all|=0x100;       // Issue PIE ack
+
+
+}
+
+Uint16 pid_x()
+{
+    // Store the current x_pos
+    float32 input_x = x_ball_pos_new;
+    float32 error_x = x_ball_set - input_x; //error comes later
+    float32 dInput_x = (input_x - x_ball_pos_old); //Find the delta
+    outsum_x += kiX*error_x;
+
+    outsum_x -= kpX * dInput_x;
+    if(outsum_x > x_max) outsum_x = x_max;
+    if(outsum_x < x_min) outsum_x = x_min;
+
+
+    float32 output_x = kpX*error_x;
+    if(output_x > x_max) output_x = x_max;
+    if(output_x < x_min) output_x = x_min;
+
+    output_x += outsum_x - kdX*dInput_x;
+    if(output_x > x_max) output_x = x_max;
+    if(output_x < x_min) output_x = x_min;
+
+    x_ball_pos_old = x_ball_pos_new;
+    return (100-(50 + output_x));
+}
+Uint16 pid_y()
+{
+    // Store the current x_pos
+    float32 input_y = y_ball_pos_new;
+    float32 error_y = y_ball_set - input_y; //error comes later
+    float32 dInput_y = (input_y - y_ball_pos_old); //Find the delta
+    outsum_y += kiY*error_y;
+
+    outsum_y -= kpY * dInput_y;
+    if(outsum_y > y_max) outsum_y = y_max;
+    if(outsum_y < y_min) outsum_y = y_min;
+
+
+    float32 output_y = kpY*error_y;
+    if(output_y > y_max) output_y = y_max;
+    if(output_y < y_min) output_y = y_min;
+
+    output_y += outsum_y - kdY*dInput_y;
+    if(output_y > y_max) output_y = y_max;
+    if(output_y < y_min) output_y = y_min;
+
+    y_ball_pos_old = y_ball_pos_new;
+    return (100-(50 + output_y));
+}
+
+
+void pixel_to_motor( Uint16 x_pos, Uint16 y_pos)
+{
+    //pixel/deg
+    EPwm1Regs.CMPA.half.CMPA = (y_pos)*22/5 + pwm_offset_y;
+    EPwm3Regs.CMPA.half.CMPA = (100-x_pos)*22/5 + pwm_offset_x;
+}
+
+/***************PID********************/
+
+// Sends an 8bit Ack out to the Pi
 void SendACK(void)
 {
     while(!SciaRegs.SCICTL2.bit.TXRDY)
@@ -106,110 +300,9 @@ void SendACK(void)
     SCIA_Flush();
 }
 
-inline Uint16 SCIA_GetACK()
-{
-    Uint16 wordData;
-
-    while(SciaRegs.SCIRXST.bit.RXRDY != 1) { }
-
-    wordData =  (Uint16)SciaRegs.SCIRXBUF.bit.RXDT;
-    if(wordData != ACK)
-    {
-        return(1);
-    }
-
-    return(0);
-}
 inline void SCIA_Flush(void)
 {
     while(!SciaRegs.SCICTL2.bit.TXEMPTY)
     {
     }
-}
-
-void SCI_SendWord(Uint16 word)
-{
-    SciaRegs.SCITXBUF = (word & 0xFF); //LSB
-    checksum += word & 0xFF;
-    SCIA_Flush();
-
-
-    SciaRegs.SCITXBUF = (word>>8) & 0xFF; //MSB
-    checksum += word>>8 & 0xFF;
-    SCIA_Flush();
-
-}
-
-//
-// SCIA_AutobaudLock - Perform autobaud lock with the host.
-//                     Note that if autobaud never occurs
-//                     the program will hang in this routine as there
-//                     is no timeout mechanism included.
-//
-void SCIA_AutobaudLock(void)
-{
-    Uint16 byteData;
-
-    //
-    // Must prime baud register with >= 1
-    //
-    SciaRegs.SCILBAUD  = 1;
-
-    //
-    // Prepare for autobaud detection
-    // Set the CDC bit to enable autobaud detection
-    // and clear the ABD bit
-    //
-    SciaRegs.SCIFFCT.bit.CDC = 1;
-    SciaRegs.SCIFFCT.bit.ABDCLR = 1;
-
-    //
-    // Wait until we correctly read an
-    // 'A' or 'a' and lock
-    //
-    while(SciaRegs.SCIFFCT.bit.ABD != 1) {}
-
-    //
-    // After autobaud lock, clear the ABD and CDC bits
-    //
-    SciaRegs.SCIFFCT.bit.ABDCLR = 1;
-    SciaRegs.SCIFFCT.bit.CDC = 0;
-
-    while(SciaRegs.SCIRXST.bit.RXRDY != 1) { }
-    byteData = SciaRegs.SCIRXBUF.bit.RXDT;
-    SciaRegs.SCITXBUF = byteData;
-
-    return;
-}
-
-Uint16 SCIA_GetOnlyWordData(void)
-{
-   Uint16 wordData;
-   Uint16 byteData;
-
-   wordData = 0x0000;
-   byteData = 0x0000;
-
-   //
-   // Fetch the LSB and verify back to the host
-   //
-   while(SciaRegs.SCIRXST.bit.RXRDY != 1) { }
-   wordData = (Uint16)SciaRegs.SCIRXBUF.bit.RXDT;
-   //SciaRegs.SCITXBUF.bit.TXDT = wordData;
-
-   //
-   // Fetch the MSB and verify back to the host
-   //
-   while(SciaRegs.SCIRXST.bit.RXRDY != 1) { }
-   byteData =  (Uint16)SciaRegs.SCIRXBUF.bit.RXDT;
-   //SciaRegs.SCITXBUF.bit.TXDT = byteData;
-
-   checksum += wordData + byteData;
-
-   //
-   // form the wordData from the MSB:LSB
-   //
-   wordData |= (byteData << 8);
-
-   return wordData;
 }

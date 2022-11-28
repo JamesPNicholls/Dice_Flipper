@@ -1,5 +1,5 @@
 #
-_XDCBUILDCOUNT = 
+_XDCBUILDCOUNT = 0
 ifneq (,$(findstring path,$(_USEXDCENV_)))
 override XDCPATH = C:/ti/bios_6_83_00_18/packages;C:/Users/retge/Documents/git_repo/Dice_Flipper/firmware/Lab2Idle/.config
 override XDCROOT = C:/ti/ccs1040/xdctools_3_62_01_15_core

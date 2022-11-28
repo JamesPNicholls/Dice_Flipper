@@ -9,6 +9,7 @@ Using two sides of a dice determine the relative position of the other faces
 Apply a path finding algorithm to find coordinates of 
 
 Code stolen from: https://golsteyn.com/writing/dice
+
 """
 import cv2
 import numpy as np
@@ -63,6 +64,8 @@ def find_squares(frame):
     thresh = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)[1]
     can =  cv2.Canny(thresh, 100, 200)
    
+    thresh = cv2.bitwise_not(thresh)
+
     cnts, hier  = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     square = []
 
@@ -145,8 +148,10 @@ def overlay_info(frames, dice, blobs, sqaure, corner):
         # stores the value of the top face
         top_face = d[0]
         # finds the difference between the reference corner and the center of the die face
-        delta = p_array[d[0]] - p_array[0]
-
+        try:
+            delta = p_array[d[0]] - p_array[0]
+        except:
+            print("no")
 
     try:
         # Robotics transform discussed in elex_7660
@@ -232,17 +237,50 @@ params.minInertiaRatio = 0.6
 detector = cv2.SimpleBlobDetector_create(params)
 print("Opening Camera")
 cap = cv2.VideoCapture(1 + cv2.CAP_DSHOW)
+fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+cap.set(cv2.CAP_PROP_FOURCC, fourcc)
 print("Camera Opened")
+
+
+def find_center(frame):
+    frame
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)[1]
+    thresh = (255-thresh)
+    can =  cv2.Canny(thresh, 100, 200)
+    cv2.imshow("can", thresh)
+   
+    cent = []
+    r = []
+    cnts, hier  = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for c in cnts:
+        rect = cv2.minAreaRect(c)
+        ((x,y), (w,h), ang) = cv2.minAreaRect(c)
+        box = cv2.boxPoints(rect)
+        box = np.int0(box)
+
+        if w*h > 90000 and w*h < 115000 :
+            cv2.drawContours(frame,[box],0,(0,0,255),2)
+
+
+        (x,y),r= cv2.minEnclosingCircle(c)
+        if r != None:
+            if r < 10  and r > 5 and x > 200 and y > 200 and x < 350 and y < 350:
+                cv2.circle(frame, (int(x),int(y)),int(r) , (0,255,0), 2)
+                cv2.putText(frame, str(int(x)), (int(x),int(y)), cv2.FONT_HERSHEY_COMPLEX, 1, (255,100,0))
+                cv2.putText(frame, str(int(y)), (int(x),int(y)+10), cv2.FONT_HERSHEY_COMPLEX, 1, (255,100,100))
+
 
 while(True):
     # Grab the latest image from the video feed
     ret, frame = cap.read()
+    find_center(frame)
     # We'll define these later
-    blobs = get_blobs(frame)
-    dice = get_dice_from_blobs(blobs)
-    square = find_squares(frame)
-    corner = find_corner(frame)
-    out_frame = overlay_info(frame,dice, blobs, square, corner)
+    #blobs = get_blobs(frame)
+    #dice = get_dice_from_blobs(blobs)
+   # square = find_squares(frame)
+   # corner = find_corner(frame)
+   # out_frame = overlay_info(frame,dice, blobs, square, corner)
 
     cv2.imshow("frame", frame)
 
@@ -251,3 +289,7 @@ while(True):
     # Stop if the user presses "q"
     if res & 0xFF == ord('q'):
         break
+
+    x = 300
+    xx = x.to_bytes(2, 'big')
+    
