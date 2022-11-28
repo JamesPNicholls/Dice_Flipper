@@ -1,14 +1,15 @@
 // Filename:            Lab2Idle_DeviceInit.c
 //
-// Description:	        Initialization code
+// Description:	        Initialization code for ELEX 7820 lab projects
 //
-// Version:             1.0
+// Version:             1.1
 //
 // Target:              TMS320F28027
 //
 // Author:              David Romalo
+//                      (edited) James Nicholls, Laurel Kinahan
 //
-// Date:                11Oct2022
+// Date:                28Nov2022
 
 #include <Headers/F2802x_device.h>
 #define SYSCLKOUT_DIV6   0b011
@@ -22,21 +23,21 @@ void DeviceInit(void)
 EALLOW; //allow access to protected registers
 
     // GPIO 
-   // TURN ON ePWM1,3,4
-   SysCtrlRegs.PCLKCR1.bit.EPWM1ENCLK = 1;  // ePWM1    // LK
-  // SysCtrlRegs.PCLKCR1.bit.EPWM2ENCLK = 0;
-   SysCtrlRegs.PCLKCR1.bit.EPWM3ENCLK = 1;  // ePWM3    // LK
-   //SysCtrlRegs.PCLKCR1.bit.EPWM4ENCLK = 1;  // ePWM4    // LK
+    // TURN ON ePWM1,3,4
+    SysCtrlRegs.PCLKCR1.bit.EPWM1ENCLK = 1;  // ePWM1    // LK
+    // SysCtrlRegs.PCLKCR1.bit.EPWM2ENCLK = 0;
+    SysCtrlRegs.PCLKCR1.bit.EPWM3ENCLK = 1;  // ePWM3    // LK
+    //SysCtrlRegs.PCLKCR1.bit.EPWM4ENCLK = 1;  // ePWM4    // LK
    //------------------------------------------------
 
-//  GPIO-00 - PIN FUNCTION = --Spare--
-   //   ePWM1A  J1PIN 1
+    //  GPIO-00 - PIN FUNCTION = --Spare--
+    //   ePWM1A  J1PIN 1
 	GpioCtrlRegs.GPAMUX1.bit.GPIO0 = 1;		// 0=GPIO,  1=EPWM1A,  2=Resv,  3=Resv      // LK
 	GpioCtrlRegs.GPADIR.bit.GPIO0 = 1;		// 1=OUTput,  0=INput                       // LK
 //	GpioDataRegs.GPACLEAR.bit.GPIO0 = 1;	// uncomment if --> Set Low initially
 	GpioDataRegs.GPASET.bit.GPIO0 = 1;		// uncomment if --> Set High initially      // LK
 //--------------------------------------------------------------------------------------
-//  GPIO-01 - PIN FUNCTION = --Spare--
+    //  GPIO-01 - PIN FUNCTION = --Spare--
 	//   ePWM1B  J1PIN 2
 	GpioCtrlRegs.GPAMUX1.bit.GPIO1 = 1;		// 0=GPIO,  1=EPWM1B,  2=EMU0,  3=COMP1OUT  // LK
 	GpioCtrlRegs.GPADIR.bit.GPIO1 = 1;		// 1=OUTput,  0=INput 			    // LK
@@ -161,15 +162,14 @@ EALLOW; //allow access to protected registers
 /*************PWM STUFF*******************************/
 
 /*************SCI-A Enable Stuff**********************/
+    // Enable Peripheral clock
     SysCtrlRegs.PCLKCR0.bit.SCIAENCLK = 1;
-    // Note: Clocks were turned on to the SCIA peripheral
-    // in the InitSysCtrl() function
 
     // Reset the SCI regs
     SciaRegs.SCICTL1.bit.SWRESET = 0;
     SciaRegs.SCICTL1.bit.SWRESET = 1;
 
-    // Mux settings for first
+    // Mux settings
     GpioCtrlRegs.GPAMUX2.bit.GPIO29 = 1;
     GpioCtrlRegs.GPAMUX2.bit.GPIO28 = 1;
 
@@ -206,12 +206,6 @@ EALLOW; //allow access to protected registers
 
     // Initialize FIFOs for the Tx/Rx
     SciaRegs.SCIFFTX.all = 0x8000;
-
-
-
-
-
-
-
+    
 EDIS; //disallow access to protected registers
 }

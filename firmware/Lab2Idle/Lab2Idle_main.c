@@ -11,10 +11,6 @@
 //defines:
 #define xdc__strict //suppress typedef warnings
 #define ACK 0x2D
-#define x_A 0xXX
-#define y_A 0xYY
-
-
 
 //includes:
 #include <xdc/std.h>
@@ -24,9 +20,6 @@
 #include <ti/sysbios/hal/Hwi.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Semaphore.h>
-
-
-
 
 //Swi handle defined in .cfg file:
 
@@ -54,12 +47,7 @@ void pixel_to_motor(Uint16 x, Uint16 y);
 volatile Bool isrFlag = FALSE; //flag used by idle function
 volatile UInt tickCount = 0; //counter incremented by timer interrupt
 
-Uint16 ReceivedChar;
-char *msg;
-Uint16 checksum;
-Uint16 return_ack;
-Uint16 word_data;
-Uint16 duty;
+
 
 // Ball parameters
 Uint16 x_ball_pos_old = 0;
@@ -73,20 +61,13 @@ Uint16 y_ball_set = 50;
 Uint16 x_serv_set = 2800;
 Uint16 y_serv_set = 2800;
 
-
-// Servo Parameters
+// Limits for PID Parameters
 Uint16 x_max = 50;
 Uint16 y_max = 50;
 int16 x_min = -50;
 int16 y_min = -50;
 
-Uint16 x_servo = 0;
-Uint16 y_servo = 0;
-
-// PID parameters
-float32 outX = 0;
-float32 outY = 0;
-
+// PID consts
 float32 kpX = 12.5;
 float32 kiX = 0;
 float32 kdX = 200;
@@ -95,20 +76,16 @@ float32 kpY = 12.5;
 float32 kiY = 0;
 float32 kdY = 200;
 
-float32 kpX_a = 10;
-float32 kiX_a = 0;
-float32 kdX_a = 200;
-
-float32 kpY_a = 10;
-float32 kiY_a = 0;
-float32 kdY_a = 200;
 
 float32 outsum_x = 0;
 float32 outsum_y = 0;
 
+// Consts used to convert the angle to PWM
 Uint16 pwm_mult = 4;
 Uint16 pwm_offset_x = 2125;
 Uint16 pwm_offset_y = 2375;
+
+// Range for the system to not trigger PID
 Uint16 dead_band_rad = 5;
 
 //True to use the PID tuning
@@ -130,20 +107,6 @@ Int main()
     return(0);
 }
 
-/* ======== myTickFxn ======== */
-//Timer tick function that increments a counter and sets the isrFlag
-//Entered times per second if PLL and Timer set up correctly
-Void myTickFxn(UArg arg)
-{
-
-}
-
-/* ======== myIdleFxn ======== */
-//Idle function that is called repeatedly from RTOS
-Void myIdleFxn(Void)
-{
-
-}
 
 //Scale
 Void myTskFxn(Void)
@@ -151,12 +114,8 @@ Void myTskFxn(Void)
 
     while(true)
     {
-
         Semaphore_pend(mySem, BIOS_WAIT_FOREVER); //wait for semaphore to be posted
         GpioDataRegs.GPASET.bit.GPIO5 = 1;
-
-
-
     }
 
 
@@ -169,17 +128,14 @@ Void mySwiFxn(Void)
 
     if(PID)
     {
-
-
         x = pid_x();
         y = pid_y();
         diff_x = abs(x_ball_pos_new - x_ball_set);
         diff_y = abs(y_ball_pos_new - y_ball_set);
 
+        // Scaling P value
         kpX = diff_x;
         kpY = diff_y;
-
-
 
         if(diff_x < dead_band_rad)
         {
@@ -205,9 +161,7 @@ Void myHwi(Void)
 {
 
 
-    GpioDataRegs.GPACLEAR.bit.GPIO5 = 1;
     Swi_post(Swi0); // Post the Swi to assign the values to motors
-    GpioDataRegs.GPACLEAR.bit.GPIO5 = 1;
     Uint16 rx_data = SciaRegs.SCIRXBUF.bit.RXDT;
 
     //Values received are from 0 to 100
@@ -300,6 +254,7 @@ void SendACK(void)
     SCIA_Flush();
 }
 
+//Wait for the Tx buffer to clear
 inline void SCIA_Flush(void)
 {
     while(!SciaRegs.SCICTL2.bit.TXEMPTY)
